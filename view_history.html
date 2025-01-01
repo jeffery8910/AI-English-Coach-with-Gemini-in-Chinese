@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英語教練對話歷史</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .human {
+            background-color: #e3f2fd;
+            margin-right: 20%;
+        }
+        .ai {
+            background-color: #f5f5f5;
+            margin-left: 20%;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+        h1 {
+            color: #1976d2;
+            text-align: center;
+        }
+        .no-history {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <h1>英語教練對話歷史</h1>
+    <div class="controls">
+        <button onclick="loadHistory()">重新載入歷史記錄</button>
+    </div>
+    <div class="chat-container" id="chatHistory">
+        <!-- 對話歷史將在這裡顯示 -->
+    </div>
+
+    <script>
+        function loadHistory() {
+            fetch('chat_history.json')
+                .then(response => response.json())
+                .then(history => {
+                    const container = document.getElementById('chatHistory');
+                    container.innerHTML = ''; // 清空現有內容
+                    
+                    if (history.length === 0) {
+                        container.innerHTML = '<div class="no-history">尚無對話歷史</div>';
+                        return;
+                    }
+
+                    history.forEach(msg => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `message ${msg.type}`;
+                        
+                        const content = document.createElement('div');
+                        content.className = 'content';
+                        content.textContent = msg.content;
+                        
+                        const timestamp = document.createElement('div');
+                        timestamp.className = 'timestamp';
+                        const date = new Date(msg.timestamp);
+                        timestamp.textContent = date.toLocaleString('zh-TW');
+                        
+                        messageDiv.appendChild(content);
+                        messageDiv.appendChild(timestamp);
+                        container.appendChild(messageDiv);
+                    });
+                })
+                .catch(error => {
+                    console.error('載入歷史記錄時發生錯誤:', error);
+                    document.getElementById('chatHistory').innerHTML = 
+                        '<div class="no-history">載入歷史記錄時發生錯誤</div>';
+                });
+        }
+
+        // 頁面載入時自動載入歷史記錄
+        window.onload = loadHistory;
+    </script>
+</body>
+</html> 
