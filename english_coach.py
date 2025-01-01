@@ -12,7 +12,7 @@ def setup_api_key():
     load_dotenv()
     
     # 設定 API 金鑰
-    api_key = "AIzaSyCwTD1tu5nS7kgEhsUgaAQjH7pzlTadRX4"
+    api_key = "請輸入您的 Google API 金鑰"
     
     # 確保 API 金鑰是有效的格式
     if not isinstance(api_key, str) or not api_key.strip():
