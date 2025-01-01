@@ -1,6 +1,4 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.runnables import RunnableWithMessageHistory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 import os
 import json
@@ -44,25 +42,6 @@ class EnglishCoach:
             google_api_key=os.getenv('GOOGLE_API_KEY')
         )
         
-        # 定義角色提示詞
-        self.role_prompt = """You are a professional English language coach. 
-Your role is to help students improve their English skills.
-Please provide detailed feedback on grammar, vocabulary, and pronunciation when appropriate.
-Always encourage the student and maintain a positive, supportive attitude.
-When correcting mistakes, first acknowledge what was done well, then provide corrections.
-For each correction, explain the rule or reason behind it.
-End each response with a small encouragement or practice suggestion."""
-        
-        # 創建提示模板
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", self.role_prompt),
-            MessagesPlaceholder(variable_name="history"),
-            ("human", "{input}")
-        ])
-        
-        # 創建對話鏈
-        self.chain = self.prompt | self.llm
-        
         # 初始化對話歷史
         self.message_history = []
         
@@ -103,20 +82,34 @@ End each response with a small encouragement or practice suggestion."""
         except Exception as e:
             print(f"儲存歷史記錄時發生錯誤：{str(e)}")
     
+    def format_prompt(self, user_input: str) -> str:
+        """格式化提示詞"""
+        coach_prompt = """As a professional English language coach, I will:
+1. Help improve your English skills
+2. Provide detailed feedback on grammar, vocabulary, and pronunciation
+3. Always be encouraging and supportive
+4. When correcting mistakes, first acknowledge what was done well
+5. Explain the rules behind corrections
+6. End with a practice suggestion
+
+Student's input: """
+        return coach_prompt + user_input
+    
     def chat(self, user_input: str) -> str:
         """處理使用者輸入並返回教練的回應"""
         try:
             if not user_input.strip():
                 return "請輸入一些內容讓我幫您檢查或回答。"
             
+            # 格式化輸入
+            formatted_input = self.format_prompt(user_input)
+            
             # 添加新的訊息到歷史記錄
             self.message_history.append(HumanMessage(content=user_input))
             
-            # 使用新的方式處理對話
-            response = self.chain.invoke({
-                "history": self.message_history,
-                "input": user_input
-            })
+            # 使用 LLM 處理訊息
+            messages = [HumanMessage(content=formatted_input)]
+            response = self.llm.invoke(messages)
             
             # 將 AI 的回應添加到歷史記錄
             self.message_history.append(AIMessage(content=response.content))
