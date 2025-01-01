@@ -1,4 +1,4 @@
-from langchain.llms import GooglePalm
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationChain
 from langchain.prompts import PromptTemplate
@@ -6,37 +6,33 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-def 設定API金鑰(api_key: str) -> bool:
-    """直接設定 API 金鑰"""
-    try:
-        with open('.env', 'w', encoding='utf-8') as f:
-            f.write(f'GOOGLE_API_KEY={api_key}')
-        return True
-    except Exception:
-        return False
-
-# 設定您的 Google API 金鑰
-GOOGLE_API_KEY = "在此處填入您的 Google API 金鑰"
-設定API金鑰(GOOGLE_API_KEY)
-
-# Load environment variables
+# 載入 .env 檔案
 load_dotenv()
 
-# Configure Google Gemini
+# 設定 API 金鑰（請將您的 API 金鑰填入下方）
+GOOGLE_API_KEY = "在此處填入您的 Google API 金鑰"
+
+# 如果環境變數中沒有 API 金鑰，就使用上面設定的金鑰
+if not os.getenv('GOOGLE_API_KEY'):
+    os.environ['GOOGLE_API_KEY'] = GOOGLE_API_KEY
+
+# 配置 Google Gemini
 genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
 class EnglishCoach:
     def __init__(self):
-        # Initialize the language model
-        self.llm = GooglePalm(
+        # 初始化語言模型
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
             temperature=0.7,
-            model_name="models/text-bison-001"
+            convert_system_message_to_human=True,
+            google_api_key=os.getenv('GOOGLE_API_KEY')  # 直接傳入 API 金鑰
         )
         
-        # Create a conversation memory
+        # 創建對話記憶
         self.memory = ConversationBufferMemory()
         
-        # Define the prompt template for the English coach
+        # 定義提示模板
         template = """You are a professional English language coach. Your role is to help students improve their English skills.
 Please provide detailed feedback on grammar, vocabulary, and pronunciation when appropriate.
 Always encourage the student and maintain a positive, supportive attitude.
@@ -52,7 +48,7 @@ Coach: """
             template=template
         )
         
-        # Create the conversation chain
+        # 創建對話鏈
         self.conversation = ConversationChain(
             llm=self.llm,
             memory=self.memory,
@@ -61,14 +57,20 @@ Coach: """
         )
     
     def chat(self, user_input: str) -> str:
-        """
-        Process user input and return coach's response
-        """
-        response = self.conversation.predict(input=user_input)
-        return response
+        """處理使用者輸入並返回教練的回應"""
+        try:
+            response = self.conversation.predict(input=user_input)
+            return response
+        except Exception as e:
+            return f"發生錯誤：{str(e)}\n請確認您的 API 金鑰是否正確設定。"
 
 def main():
-    # Initialize the English coach
+    # 檢查 API 金鑰是否已設定
+    if not os.getenv('GOOGLE_API_KEY') or os.getenv('GOOGLE_API_KEY') == "在此處填入您的 Google API 金鑰":
+        print("錯誤：請先在程式碼中設定您的 Google API 金鑰！")
+        return
+
+    # 初始化英語教練
     coach = EnglishCoach()
     
     print("歡迎使用英語教練！(輸入 'quit' 來結束對話)")
