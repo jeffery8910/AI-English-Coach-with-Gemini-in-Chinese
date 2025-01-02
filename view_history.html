@@ -3,81 +3,292 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英語教練對話歷史</title>
+    <title>AI 英語教練 - 對話歷史</title>
     <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #2196F3;
+            --background-color: #f5f5f5;
+            --text-color: #333;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .chat-container {
             background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .message {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .human {
-            background-color: #e3f2fd;
-            margin-right: 20%;
-        }
-        .ai {
-            background-color: #f5f5f5;
-            margin-left: 20%;
-        }
-        .timestamp {
-            font-size: 0.8em;
-            color: #666;
-            margin-top: 5px;
-        }
-        h1 {
-            color: #1976d2;
-            text-align: center;
-        }
-        .no-history {
-            text-align: center;
-            color: #666;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             padding: 20px;
         }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            margin: 0;
+        }
+
         .controls {
-            margin: 20px 0;
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
         }
-        button {
+
+        .button {
             padding: 10px 20px;
-            background-color: #1976d2;
-            color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
         }
-        button:hover {
-            background-color: #1565c0;
+
+        .primary-button {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .secondary-button {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .search-box {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+            font-size: 14px;
+        }
+
+        .chat-container {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #fff;
+        }
+
+        .message {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .human {
+            background-color: #E3F2FD;
+            margin-right: 15%;
+            border-bottom-left-radius: 5px;
+        }
+
+        .ai {
+            background-color: #F1F8E9;
+            margin-left: 15%;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .message-content {
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .timestamp {
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        .no-history {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .status.error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .status.success {
+            background-color: #E8F5E9;
+            color: #2E7D32;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+
+            .message {
+                margin: 10px 0;
+            }
+
+            .human {
+                margin-right: 5%;
+            }
+
+            .ai {
+                margin-left: 5%;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>英語教練對話歷史</h1>
-    <div class="controls">
-        <button onclick="loadHistory()">重新載入歷史記錄</button>
-    </div>
-    <div class="chat-container" id="chatHistory">
-        <!-- 對話歷史將在這裡顯示 -->
+    <div class="container">
+        <div class="header">
+            <h1>AI 英語教練 - 對話歷史</h1>
+        </div>
+
+        <div class="controls">
+            <input type="text" 
+                   class="search-box" 
+                   id="searchInput" 
+                   placeholder="搜尋對話內容..."
+                   oninput="filterMessages()">
+            <div>
+                <button class="button primary-button" onclick="loadHistory()">
+                    重新載入歷史記錄
+                </button>
+                <button class="button secondary-button" onclick="clearHistory()">
+                    清除搜尋
+                </button>
+            </div>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+        <div class="chat-container" id="chatHistory">
+            <!-- 對話歷史將在這裡顯示 -->
+        </div>
     </div>
 
     <script>
+        let allMessages = [];
+
+        function showStatus(message, type = 'success') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function createMessageElement(msg) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${msg.type}`;
+            
+            const header = document.createElement('div');
+            header.className = 'message-header';
+            header.textContent = msg.type === 'human' ? '我' : 'AI 教練';
+            
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.textContent = msg.content;
+            
+            const timestamp = document.createElement('div');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = formatTimestamp(msg.timestamp);
+            
+            messageDiv.appendChild(header);
+            messageDiv.appendChild(content);
+            messageDiv.appendChild(timestamp);
+            
+            return messageDiv;
+        }
+
+        function filterMessages() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const container = document.getElementById('chatHistory');
+            container.innerHTML = '';
+            
+            const filteredMessages = allMessages.filter(msg => 
+                msg.content.toLowerCase().includes(searchText)
+            );
+            
+            if (filteredMessages.length === 0) {
+                container.innerHTML = '<div class="no-history">找不到符合的對話內容</div>';
+                return;
+            }
+            
+            filteredMessages.forEach(msg => {
+                container.appendChild(createMessageElement(msg));
+            });
+        }
+
+        function clearHistory() {
+            document.getElementById('searchInput').value = '';
+            filterMessages();
+        }
+
         function loadHistory() {
             fetch('chat_history.json')
                 .then(response => response.json())
                 .then(history => {
+                    allMessages = history;
                     const container = document.getElementById('chatHistory');
-                    container.innerHTML = ''; // 清空現有內容
+                    container.innerHTML = '';
                     
                     if (history.length === 0) {
                         container.innerHTML = '<div class="no-history">尚無對話歷史</div>';
@@ -85,27 +296,16 @@
                     }
 
                     history.forEach(msg => {
-                        const messageDiv = document.createElement('div');
-                        messageDiv.className = `message ${msg.type}`;
-                        
-                        const content = document.createElement('div');
-                        content.className = 'content';
-                        content.textContent = msg.content;
-                        
-                        const timestamp = document.createElement('div');
-                        timestamp.className = 'timestamp';
-                        const date = new Date(msg.timestamp);
-                        timestamp.textContent = date.toLocaleString('zh-TW');
-                        
-                        messageDiv.appendChild(content);
-                        messageDiv.appendChild(timestamp);
-                        container.appendChild(messageDiv);
+                        container.appendChild(createMessageElement(msg));
                     });
+                    
+                    showStatus('已成功載入對話歷史');
                 })
                 .catch(error => {
                     console.error('載入歷史記錄時發生錯誤:', error);
                     document.getElementById('chatHistory').innerHTML = 
                         '<div class="no-history">載入歷史記錄時發生錯誤</div>';
+                    showStatus('載入歷史記錄時發生錯誤', 'error');
                 });
         }
 
