@@ -84,7 +84,8 @@ class EnglishCoachGUI:
         """設置 API 金鑰"""
         load_dotenv()
         api_key = os.getenv('GOOGLE_API_KEY')
-        if api_key:
+        if api_key and api_key.strip():
+            self.api_entry.delete(0, "end")
             self.api_entry.insert(0, api_key)
             self.save_api_key()
     
@@ -96,7 +97,7 @@ class EnglishCoachGUI:
             return
         
         os.environ['GOOGLE_API_KEY'] = api_key
-        with open('.env', 'w') as f:
+        with open('.env', 'w', encoding='utf-8') as f:
             f.write(f'GOOGLE_API_KEY="{api_key}"')
         
         try:
@@ -109,13 +110,16 @@ class EnglishCoachGUI:
     def initialize_chat(self):
         """初始化聊天功能"""
         try:
-            self.llm = ChatGoogleGenerativeAI(
-                model="gemini-pro",
-                temperature=0.7,
-                google_api_key=os.getenv('GOOGLE_API_KEY')
-            )
+            api_key = os.getenv('GOOGLE_API_KEY')
+            if not api_key:
+                self.show_message("請先設定 API 金鑰")
+                return
+                
+            genai.configure(api_key=api_key)
+            self.model = genai.GenerativeModel('gemini-pro')
             self.message_history = []
             self.load_history()
+            self.show_message("聊天功能初始化成功！")
         except Exception as e:
             self.show_message(f"初始化失敗：{str(e)}")
     
@@ -126,10 +130,7 @@ class EnglishCoachGUI:
                 with open('chat_history.json', 'r', encoding='utf-8') as f:
                     history = json.load(f)
                     for msg in history:
-                        if msg['type'] == 'human':
-                            self.message_history.append(HumanMessage(content=msg['content']))
-                        elif msg['type'] == 'ai':
-                            self.message_history.append(AIMessage(content=msg['content']))
+                        self.message_history.append(msg)
                         self.append_message(msg['type'], msg['content'])
         except Exception as e:
             self.show_message(f"載入歷史記錄失敗：{str(e)}")
@@ -140,8 +141,8 @@ class EnglishCoachGUI:
             history = []
             for msg in self.message_history:
                 msg_dict = {
-                    'type': 'human' if isinstance(msg, HumanMessage) else 'ai',
-                    'content': msg.content,
+                    'type': 'human' if msg.get('role') == 'user' else 'ai',
+                    'content': msg.get('content'),
                     'timestamp': datetime.now().isoformat()
                 }
                 history.append(msg_dict)
@@ -160,6 +161,7 @@ class EnglishCoachGUI:
 4. When correcting mistakes, first acknowledge what was done well
 5. Explain the rules behind corrections
 6. End with a practice suggestion
+7. Remove markdown syntax, such as "**", just simple text
 
 Student's input: """
         return coach_prompt + user_input
@@ -179,22 +181,28 @@ Student's input: """
     def process_ai_response(self, user_input):
         """處理 AI 回應"""
         try:
+            if not hasattr(self, 'model'):
+                self.show_message("請先設定有效的 API 金鑰")
+                return
+                
             formatted_input = self.format_prompt(user_input)
-            self.message_history.append(HumanMessage(content=user_input))
+            self.message_history.append({"role": "user", "content": user_input})
             
-            messages = [HumanMessage(content=formatted_input)]
-            response = self.llm.invoke(messages)
+            response = self.model.generate_content(formatted_input)
             
-            self.message_history.append(AIMessage(content=response.content))
-            self.window.after(0, self.append_message, 'ai', response.content)
-            self.save_history()
+            if response.text:
+                self.message_history.append({"role": "assistant", "content": response.text})
+                self.window.after(0, self.append_message, 'ai', response.text)
+                self.save_history()
+            else:
+                self.show_message("AI 未能生成有效回應")
             
         except Exception as e:
             error_msg = str(e)
             if "API key not available" in error_msg:
-                self.show_message("錯誤：API 金鑰無效或未正確設定。")
+                self.show_message("錯誤：API 金鑰無效或未正確設定")
             elif "model not found" in error_msg:
-                self.show_message("錯誤：無法存取 Gemini 模型，請確認您的 API 金鑰權限。")
+                self.show_message("錯誤：無法存取 Gemini 模型，請確認您的 API 金鑰權限")
             else:
                 self.show_message(f"發生錯誤：{error_msg}")
     
