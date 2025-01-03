@@ -1,85 +1,128 @@
 import os
 import json
-import customtkinter as ctk
+import threading
 from datetime import datetime
+import customtkinter as ctk
 from dotenv import load_dotenv
 import google.generativeai as genai
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import HumanMessage, SystemMessage, AIMessage
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationChain
-import threading
-import webbrowser
-from pathlib import Path
 
 class EnglishCoachGUI:
     def __init__(self):
-        self.setup_window()
-        self.setup_api_key()
-        self.initialize_chat()
-        
-    def setup_window(self):
-        """設置主視窗"""
+        """初始化 GUI"""
         self.window = ctk.CTk()
         self.window.title("AI 英語教練")
         self.window.geometry("800x600")
         
-        # 設置網格權重
-        self.window.grid_rowconfigure(1, weight=1)
-        self.window.grid_columnconfigure(0, weight=1)
+        # 創建標籤頁控制器
+        self.tabview = ctk.CTkTabview(self.window)
+        self.tabview.pack(fill="both", expand=True, padx=10, pady=5)
         
-        # API 金鑰輸入框
-        self.api_frame = ctk.CTkFrame(self.window)
-        self.api_frame.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
+        # 添加聊天和歷史標籤頁
+        self.chat_tab = self.tabview.add("聊天")
+        self.history_tab = self.tabview.add("歷史記錄")
         
-        self.api_label = ctk.CTkLabel(self.api_frame, text="Google API 金鑰:")
-        self.api_label.pack(side="left", padx=5)
+        # 設置聊天標籤頁
+        self.setup_chat_tab()
         
-        self.api_entry = ctk.CTkEntry(self.api_frame, width=300, show="*")
+        # 設置歷史記錄標籤頁
+        self.setup_history_tab()
+        
+        # 初始化消息歷史
+        self.message_history = []
+        
+        # 設置 API 金鑰
+        self.setup_api_key()
+        
+        self.window.mainloop()
+    
+    def setup_chat_tab(self):
+        """設置聊天標籤頁"""
+        # API 金鑰框架
+        api_frame = ctk.CTkFrame(self.chat_tab)
+        api_frame.pack(fill="x", padx=10, pady=5)
+        
+        api_label = ctk.CTkLabel(api_frame, text="API 金鑰:")
+        api_label.pack(side="left", padx=5)
+        
+        self.api_entry = ctk.CTkEntry(api_frame, width=300, show="*")
         self.api_entry.pack(side="left", padx=5)
         
-        self.save_api_btn = ctk.CTkButton(self.api_frame, text="儲存金鑰", command=self.save_api_key)
-        self.save_api_btn.pack(side="left", padx=5)
+        api_button = ctk.CTkButton(api_frame, text="設定", command=self.save_api_key)
+        api_button.pack(side="left", padx=5)
         
         # 聊天區域
-        self.chat_frame = ctk.CTkFrame(self.window)
-        self.chat_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+        self.chat_text = ctk.CTkTextbox(self.chat_tab, wrap="word")
+        self.chat_text.pack(fill="both", expand=True, padx=10, pady=5)
         
-        self.chat_text = ctk.CTkTextbox(self.chat_frame)
-        self.chat_text.pack(fill="both", expand=True, padx=5, pady=5)
+        # 輸入區域框架
+        input_frame = ctk.CTkFrame(self.chat_tab)
+        input_frame.pack(fill="x", padx=10, pady=5)
         
-        # 輸入區域
-        self.input_frame = ctk.CTkFrame(self.window)
-        self.input_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
+        self.input_entry = ctk.CTkEntry(input_frame, placeholder_text="輸入訊息...")
+        self.input_entry.pack(side="left", fill="x", expand=True, padx=5)
         
-        self.input_entry = ctk.CTkEntry(self.input_frame, placeholder_text="輸入訊息...", width=600)
-        self.input_entry.pack(side="left", padx=5, fill="x", expand=True)
+        send_button = ctk.CTkButton(input_frame, text="發送", command=self.send_message)
+        send_button.pack(side="left", padx=5)
         
-        self.send_btn = ctk.CTkButton(self.input_frame, text="發送", command=self.send_message)
-        self.send_btn.pack(side="left", padx=5)
+        clear_button = ctk.CTkButton(input_frame, text="清除", command=self.clear_chat)
+        clear_button.pack(side="left", padx=5)
         
-        # 功能按鈕區
-        self.button_frame = ctk.CTkFrame(self.window)
-        self.button_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
-        
-        self.view_history_btn = ctk.CTkButton(
-            self.button_frame, 
-            text="查看歷史記錄", 
-            command=self.view_history
-        )
-        self.view_history_btn.pack(side="left", padx=5)
-        
-        self.clear_btn = ctk.CTkButton(
-            self.button_frame, 
-            text="清除對話", 
-            command=self.clear_chat
-        )
-        self.clear_btn.pack(side="left", padx=5)
-        
-        # 綁定Enter鍵
+        # 綁定回車鍵
         self.input_entry.bind("<Return>", lambda event: self.send_message())
+    
+    def setup_history_tab(self):
+        """設置歷史記錄標籤頁"""
+        # 搜尋框架
+        search_frame = ctk.CTkFrame(self.history_tab)
+        search_frame.pack(fill="x", padx=10, pady=5)
         
+        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="搜尋歷史記錄...")
+        self.search_entry.pack(side="left", fill="x", expand=True, padx=5)
+        
+        search_button = ctk.CTkButton(search_frame, text="搜尋", command=self.search_history)
+        search_button.pack(side="left", padx=5)
+        
+        clear_search_button = ctk.CTkButton(search_frame, text="清除搜尋", command=self.clear_search)
+        clear_search_button.pack(side="left", padx=5)
+        
+        # 歷史記錄顯示區域
+        self.history_text = ctk.CTkTextbox(self.history_tab, wrap="word")
+        self.history_text.pack(fill="both", expand=True, padx=10, pady=5)
+    
+    def search_history(self):
+        """搜尋歷史記錄"""
+        search_text = self.search_entry.get().strip().lower()
+        if not search_text:
+            self.display_all_history()
+            return
+            
+        self.history_text.configure(state="normal")
+        self.history_text.delete(1.0, "end")
+        
+        for msg in self.message_history:
+            content = msg.get('content', '').lower()
+            if search_text in content:
+                msg_type = '我' if msg.get('role') == 'user' else 'AI 教練'
+                self.history_text.insert("end", f"{msg_type}: {msg.get('content')}\n\n")
+        
+        self.history_text.configure(state="disabled")
+    
+    def clear_search(self):
+        """清除搜尋"""
+        self.search_entry.delete(0, "end")
+        self.display_all_history()
+    
+    def display_all_history(self):
+        """顯示所有歷史記錄"""
+        self.history_text.configure(state="normal")
+        self.history_text.delete(1.0, "end")
+        
+        for msg in self.message_history:
+            msg_type = '我' if msg.get('role') == 'user' else 'AI 教練'
+            self.history_text.insert("end", f"{msg_type}: {msg.get('content')}\n\n")
+        
+        self.history_text.configure(state="disabled")
+    
     def setup_api_key(self):
         """設置 API 金鑰"""
         load_dotenv()
@@ -130,8 +173,11 @@ class EnglishCoachGUI:
                 with open('chat_history.json', 'r', encoding='utf-8') as f:
                     history = json.load(f)
                     for msg in history:
-                        self.message_history.append(msg)
-                        self.append_message(msg['type'], msg['content'])
+                        self.message_history.append({
+                            'role': 'user' if msg['type'] == 'human' else 'assistant',
+                            'content': msg['content']
+                        })
+                    self.display_all_history()
         except Exception as e:
             self.show_message(f"載入歷史記錄失敗：{str(e)}")
     
@@ -149,6 +195,9 @@ class EnglishCoachGUI:
             
             with open('chat_history.json', 'w', encoding='utf-8') as f:
                 json.dump(history, f, ensure_ascii=False, indent=2)
+            
+            # 更新歷史記錄顯示
+            self.display_all_history()
         except Exception as e:
             self.show_message(f"儲存歷史記錄失敗：{str(e)}")
     
@@ -231,34 +280,10 @@ Student's input: """
         self.chat_text.configure(state="disabled")
         self.message_history = []
         self.save_history()
-    
-    def view_history(self):
-        """查看歷史記錄"""
-        # 啟動本地伺服器
-        import http.server
-        import socketserver
-        import threading
-        
-        def run_server():
-            PORT = 8000
-            Handler = http.server.SimpleHTTPRequestHandler
-            try:
-                with socketserver.TCPServer(("", PORT), Handler) as httpd:
-                    self.show_message(f"伺服器已啟動於 http://localhost:{PORT}")
-                    webbrowser.open(f'http://localhost:{PORT}/view_history.html')
-                    httpd.serve_forever()
-            except Exception as e:
-                self.show_message(f"啟動伺服器失敗：{str(e)}")
-        
-        threading.Thread(target=run_server, daemon=True).start()
-    
-    def run(self):
-        """運行應用程式"""
-        self.window.mainloop()
 
 def main():
+    """主程式"""
     app = EnglishCoachGUI()
-    app.run()
 
 if __name__ == "__main__":
     main() 
